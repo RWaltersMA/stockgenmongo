@@ -1,8 +1,8 @@
-# Stock Ticker Generation tool for MongoDB
+# Stock Ticker Generation tool
 
   
 
-This application will randomly create fictitious company names, stock symbols and sample data and insert them into a MongoDB collection.  This repository contains both the python application and optional docker compose scripts if you choose to run the application within a docker container. 
+This application will randomly create fictitious company names, stock symbols and sample data and insert them into a MongoDB collection or an Apache Kafka Topic.  This repository contains both the python application and optional docker compose scripts if you choose to run the application within a docker container. 
 
 Sample console output:
 
@@ -43,47 +43,162 @@ Elapsed time:  0:00:05.195619
 
 ```
 
-## Configuration Parameters
+## Configuration File
 
-This `stockgen.py` application accepts the following parameters:
+This `stockgen.py` uses a configuration file called 'config.ini'.  You can create a template of this file by issuing the following:
+
+`stockgen.py -createconfig`
+
+Modify the output file config.ini as needed.  The following is the output of the config.ini:
+```
+[SETUP]
+type = MONGODB
+symbols = 5
+duration = 0
+include_exchange = True
+threads = 1
+time_as = STRING
+
+[KAFKA]
+bootstrap_servers = localhost:9092
+client_id = stockgenclient
+security_protocol = SASL_SSL
+sasl_mechanism = PLAIN
+sasl_plain_username = 
+sasl_plain_password = 
+topic = Stocks
+partitions = 6
+serialize = JSON
+schema_registry_url = neededforAVRO
+schema_registry_username = neededforAVRO
+schema_registry_password = neededforAVRO
+
+[MONGODB]
+connection = mongodb://127.0.0.1
+database = StockData
+collection = Stocks
+```
+
+The stockgen application can write to either MongoDB or Kafka.  Most of the parameters are self-explanatory.  Here are a few key points:
+
+```
+[SETUP]
+type = MONGODB | KAFKA
+
+When set you can ignore the other configuration values.  e.g. if you set KAFKA you can ignore anything in [MONGODB]
+
+
+symbols = 5 | any valid integer above 0
+
+This is how many securities will be created each second
+
+
+include_exchange = True | False    
+
+This parameters randomly adds "exchange":"NASDAQ" or "exchange":"NYSE"
+
+
+time_as = STRING | EPOCH 
+
+This parameter will write the value of the date as a string or an epoch time
+
+
+[KAFKA]
+serialize=JSON | AVRO 
+
+AVRO is new to this tool, working out bugs.  You need to provide schema_registry_url,schema_registry_username and schema_registry_password if using Confluent
+
+```
+
+This application was tested with SASL_SSL, PLAIN if you use a different one and it doesn't work.  Please consider filing a PR to help others.
+
+
+## Command line parameters 
+
+Stockgen application accepts the following parameters:
   
 
 | Command line parameter | Description | Default |
 |--|--|--|
-|-s | Number of company symbols | 5 |
-|-c | MongoDB Connection String | mongodb://127.0.0.1:27017/?directConnection=true' |
-|-db | Destination database name | Stocks |
+|-createconfig | Creates a configuration template file | |
+|-config | Configuration file name | config.ini |
+|-drop | Connects to Kafka or MongoDB and drops the topic or collection specified in the config file | |
+|-ts | MongoDB: Creates the collection as timeseries |  |
 |-col | Destination collection name | StockData |
-|-as | Store time as string | |
-|-q | Quiet mode, only write summarization | |
-|-n | Number of samples to generate (0=infinite) | 0 |
-  
+|-sa | Stop after X minutes.  Default 0 which is never | 0 |
+|-e | Add ranom errors to stream | |
 
 The company names are generated from reading three text files, adjectives.txt, nouns.text and endings.txt. You can modify these files to generate more unique names.
 
 
 
-### Sample use of the generator 
+### Sample use of the generator writing to MongoDB
 
-To create 10 seconds of fictitious data to the local MongoDB cluster:
+**Continually write fictitious data to the local MongoDB cluster:**
 
-`python3 stockgen.py -n 10    `
+```
+[SETUP]
+type = MONGODB
+symbols = 5
+duration = 0
+include_exchange = True
+threads =1
+time_as=DATE
 
-Continuously create sample data every second in perpetuity (until you hit Control-C) for 10 securities writing to a MongoDB Atlas cluster in quiet mode:
+[MONGODB]
+connection=mongodb+srv://<username>:<password>@stockcluster.asdfasdf.mongodb.net/?retryWrites=true&w=majority
+database = StockData
+collection = Stocks
+```
 
-`python3 stockgen.py -c "mongodb+srv://<username>:<password>@cluster0.ee68b.mongodb.net/myFirstDatabase?retryWrites=true&w=majority" -s 10 -q`
+**Continually write to KAFKA topic** 
+
+```
+[SETUP]
+type = KAFKA
+symbols = 5
+duration = 0
+include_exchange = True
+threads =1
+time_as=DATE
+
+[KAFKA]
+bootstrap_servers = sxxxxk.us-east-1.aws.confluent.cloud:9092
+client_id = stockgenclient
+security_protocol = SASL_SSL
+sasl_mechanism = PLAIN
+sasl_plain_username = ZZZZZEYHK2HZPAHJ
+sasl_plain_password = KlKinxV24vsdfjasdjkfazxcvzxcvzxcvzxcvzcxvzxcv1/ELjn8nafW
+topic = Stocks
+partitions =1
+serialize = JSON
+
+```
+
+Sample data output in Kafka Topic
+```
+{
+  "exchange": "NASDAQ",
+  "company_symbol": "QCF",
+  "company_name": "QUAINT COLLATERAL FOODS",
+  "price": 75.3,
+  "tx_time": "2024-01-25T08:59:40Z"
+}
+```
 
 
 ### Running in a container
 
+Currently this doesn't work, need some time to look into getting the right python modules installed
+
 Build the image:
-`docker build -t stockgenmongo:1.0 . `
+`docker build -t stockgen:1.0 . `
 
 Running the container:
-`docker run stockgenmongo:1.0 -n 10 -c "mongodb+srv://<username>:<password>@<some atlas cluster>/?retryWrites=true&w=majority" -db MyStocks -col Securities`
+`docker run stockgen:1.0 `
 
 Note: If your MongoDB is on another network within Docker you may need to add the `--network`parameter.  In the example above we are accessing MongoDB Atlas which lives in the cloud so no network parameter needed.
 
-Alternatively this tool is available on Docker Hub, simply call it
+Alternatively a version of this tool is available on Docker Hub, simply call it
 
 `docker run robwma/stockgenmongo:1.0 `
