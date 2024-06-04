@@ -1,3 +1,6 @@
 pymongo
 dnspython
-kafka-python
+kafka-python-ng
+confluent-kafka
+requests
+fastavro

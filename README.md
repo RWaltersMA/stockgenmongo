@@ -1,6 +1,5 @@
 # Stock Ticker Generation tool
 
-  
 
 This application will randomly create fictitious company names, stock symbols and sample data and insert them into a MongoDB collection or an Apache Kafka Topic.  This repository contains both the python application and optional docker compose scripts if you choose to run the application within a docker container. 
 
@@ -186,19 +185,25 @@ Sample data output in Kafka Topic
 }
 ```
 
+### Example Usage
 
-### Running in a container
+To start the generator
+`python3 stockgen.py -config config.ini`
 
-Currently this doesn't work, need some time to look into getting the right python modules installed
+(Note you might need to install the pre-reqs `pip3 install -r requirements.txt` before first time use )
 
-Build the image:
-`docker build -t stockgen:1.0 . `
+Use control-C to stop the data generation
 
-Running the container:
-`docker run stockgen:1.0 `
+To drop the topic or collection use --drop
 
-Note: If your MongoDB is on another network within Docker you may need to add the `--network`parameter.  In the example above we are accessing MongoDB Atlas which lives in the cloud so no network parameter needed.
+`python3 stockgen.py -config config.ini --drop`
 
-Alternatively a version of this tool is available on Docker Hub, simply call it
 
-`docker run robwma/stockgenmongo:1.0 `
+### Running on a Mac
+if on mac you might need to create a virtual environment then install the libraries as follows:
+
+`python3 -m venv my_env`
+`source my_env/bin/activate` 
+
+then
+`pip3 install -r requirements.txt`
